@@ -1,0 +1,85 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL Database ──────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: rpa_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rpa_user
+      POSTGRES_PASSWORD: rpa_password
+      POSTGRES_DB: rpa_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rpa_user -d rpa_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis Message Broker ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: rpa_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API ──────────────────────────────────────────────
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: rpa_backend
+    restart: unless-stopped
+    ports:
+      - '5000:5000'
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgres://rpa_user:rpa_password@postgres:5432/rpa_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - screenshots:/app/screenshots
+
+  # ─── Playwright Worker ────────────────────────────────────────
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: rpa_worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://rpa_user:rpa_password@postgres:5432/rpa_db
+      REDIS_URL: redis://redis:6379
+      BACKEND_URL: http://backend:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - screenshots:/app/screenshots
+
+volumes:
+  postgres_data:
+  redis_data:
+  screenshots:
