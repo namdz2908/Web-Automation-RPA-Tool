@@ -15,10 +15,10 @@ pool.on('error', (err) => {
 async function connectDB() {
   try {
     const client = await pool.connect();
-    console.log('✅ PostgreSQL connected successfully');
+    console.log(' PostgreSQL connected successfully');
     client.release();
   } catch (err) {
-    console.error('❌ PostgreSQL connection failed:', err.message);
+    console.error(' PostgreSQL connection failed:', err.message);
     process.exit(1);
   }
 }

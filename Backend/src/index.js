@@ -54,8 +54,8 @@ const PORT = process.env.PORT || 5000;
 async function bootstrap() {
   await connectDB();   // Kiểm tra kết nối PostgreSQL trước khi listen
   app.listen(PORT, () => {
-    console.log(`🚀 Backend API running on http://localhost:${PORT}`);
-    console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
+    console.log(` Backend API running on http://localhost:${PORT}`);
+    console.log(` Health check: http://localhost:${PORT}/api/health`);
   });
 }
 

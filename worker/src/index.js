@@ -20,11 +20,11 @@ const worker = new Worker(
 );
 
 worker.on('completed', (job) => {
-  console.log(`[Worker] ✅ Job ${job.id} finished successfully`);
+  console.log(`[Worker] Job ${job.id} finished successfully`);
 });
 
 worker.on('failed', (job, err) => {
-  console.error(`[Worker] ❌ Job ${job?.id} failed:`, err.message);
+  console.error(`[Worker] Job ${job?.id} failed:`, err.message);
 });
 
-console.log('🤖 RPA Worker is listening for jobs...');
+console.log('RPA Worker is listening for jobs...');
