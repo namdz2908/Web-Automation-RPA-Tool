@@ -1,158 +1,117 @@
 "use client";
 
-import { Plus, Info } from "lucide-react";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { Plus, Info, Layers } from "lucide-react";
+import { useWorkflowStore } from "@/stores/workflowStore";
+import { SortableWorkflowBlock } from "./SortableWorkflowBlock";
+import { CanvasDropZone } from "./CanvasDropZone";
 
-// ─── Workflow Canvas (Giữa) ──────────────────────────────────────────────────
-// Phase 1: Placeholder với layout khung
-// Phase 3: Sẽ thêm DndContext, sortable blocks, drag overlay
 export function WorkflowCanvas() {
+  const nodes = useWorkflowStore((s) => s.nodes);
+  const selectNode = useWorkflowStore((s) => s.selectNode);
+  const addNode = useWorkflowStore((s) => s.addNode);
+
+  // Đếm tổng số node (bao gồm cả children lồng nhau)
+  const countTotalNodes = (list: typeof nodes): number => {
+    return list.reduce((total, node) => {
+      return total + 1 + (node.children ? countTotalNodes(node.children) : 0);
+    }, 0);
+  };
+
+  const totalCount = countTotalNodes(nodes);
+
+  const handleAddNormalBlock = () => {
+    addNode({
+      type: "NORMAL_BLOCK",
+      label: "Normal Block",
+      category: "Flow Control",
+      icon: "📋",
+      isContainer: true,
+      propertyFields: [
+        { key: "blockName", label: "Block name", type: "text", placeholder: "e.g. Main logic" },
+      ],
+      defaultProperties: { blockName: "Main Logic" },
+    });
+  };
+
   return (
-    <div className="h-full bg-[var(--editor-bg)] flex flex-col">
-      {/* Canvas Header */}
+    <div
+      className="h-full bg-[var(--editor-bg)] flex flex-col select-none"
+      onClick={() => selectNode(null)}
+    >
+      {/* ── Canvas Header ────────────────────────────────────────────── */}
       <div className="px-4 py-3 bg-white border-b border-[var(--panel-border)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-base">📋</span>
+          <Layers className="w-5 h-5 text-[var(--primary)]" />
           <h2 className="font-semibold text-[var(--text-primary)]">
             Main workflow
           </h2>
+          <span className="text-xs bg-blue-50 text-[var(--primary)] border border-blue-200 px-2 py-0.5 rounded-full font-medium">
+            {totalCount} block{totalCount !== 1 ? "s" : ""}
+          </span>
         </div>
+
         <button
-          className="p-1.5 text-[var(--primary)] hover:bg-[var(--primary-light)] rounded-lg transition-colors cursor-pointer"
-          title="Thêm block"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleAddNormalBlock();
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-[var(--primary)] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+          title="Thêm Normal Block mới"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
+          <span>Thêm Khối</span>
         </button>
       </div>
 
-      {/* Canvas Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* ── Canvas Content ────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
         {/* Info Banner */}
-        <div className="flex items-start gap-3 p-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-3 p-3 bg-blue-50/80 border border-blue-200 rounded-xl">
           <Info className="w-5 h-5 text-[var(--primary)] shrink-0 mt-0.5" />
-          <p className="text-sm text-[var(--primary)]">
-            Instructions for writing logic that is easy to read, maintain, and upgrade.{" "}
-            <a href="#" className="underline font-medium">
-              Visit at HERE
-            </a>
-          </p>
-        </div>
-
-        {/* Sample Workflow Blocks (Static placeholder) */}
-        <div className="space-y-2">
-          {/* Block 1: Normal block - Before browser opened */}
-          <WorkflowBlockPlaceholder
-            icon="📋"
-            label="Normal block"
-            sublabel="Before browser opened"
-            index={1}
-          />
-
-          {/* Block 2: Normal block - Main logic (container) */}
-          <div>
-            <WorkflowBlockPlaceholder
-              icon="📋"
-              label="Normal block"
-              sublabel="Main logic · 3 block"
-              index={2}
-              isContainer
-              isExpanded
-            />
-            {/* Nested blocks */}
-            <div className="ml-6 border-l-2 border-blue-200 pl-4 space-y-2 py-2">
-              <WorkflowBlockPlaceholder
-                icon="🌐"
-                label="Go to URL"
-                index={3}
-              />
-              <WorkflowBlockPlaceholder
-                icon="🌐"
-                label="Go to URL"
-                index={4}
-              />
-              <WorkflowBlockPlaceholder
-                icon="📷"
-                label="Screenshot"
-                index={5}
-                isHighlighted
-              />
-            </div>
+          <div className="text-xs text-blue-900 leading-relaxed">
+            <span className="font-semibold">Mẹo kéo thả:</span> Kéo action từ danh mục bên trái thả vào canvas. 
+            Bạn có thể thả vào giữa các khối lệnh hoặc thả vào bên trong các khối <strong>Container (Normal Block, Loop, If/Else)</strong>.
           </div>
+        </div>
 
-          {/* Block 3: Normal block - After browser closed */}
-          <WorkflowBlockPlaceholder
-            icon="📋"
-            label="Normal block"
-            sublabel="After browser closed"
-            index={6}
+        {/* ── Workflow Blocks Tree ────────────────────────────────────── */}
+        {nodes.length === 0 ? (
+          <CanvasDropZone
+            id="root-drop-empty"
+            parentId={null}
+            index={0}
+            isEmpty={true}
+            hintText="Kéo action từ danh mục bên trái hoặc bấm '+ Thêm Khối' để bắt đầu kịch bản"
+            className="my-8"
           />
-        </div>
+        ) : (
+          <div className="space-y-1.5 pb-8">
+            <SortableContext
+              items={nodes.map((n) => n.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {nodes.map((node, idx) => (
+                <SortableWorkflowBlock
+                  key={node.id}
+                  node={node}
+                  index={idx + 1}
+                  depth={0}
+                />
+              ))}
+            </SortableContext>
 
-        {/* Drop zone placeholder */}
-        <div className="mt-4 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <p className="text-sm text-[var(--text-muted)]">
-            Kéo action từ panel bên trái và thả vào đây
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Placeholder Block Component ──────────────────────────────────────────────
-function WorkflowBlockPlaceholder({
-  icon,
-  label,
-  sublabel,
-  index,
-  isContainer = false,
-  isExpanded = false,
-  isHighlighted = false,
-}: {
-  icon: string;
-  label: string;
-  sublabel?: string;
-  index: number;
-  isContainer?: boolean;
-  isExpanded?: boolean;
-  isHighlighted?: boolean;
-}) {
-  return (
-    <div
-      className={`
-        flex items-center gap-3 px-4 py-2.5 rounded-lg border cursor-pointer transition-all
-        ${
-          isHighlighted
-            ? "bg-blue-50 border-[var(--primary)] shadow-sm"
-            : "bg-white border-[var(--panel-border)] hover:border-blue-300 hover:shadow-sm"
-        }
-      `}
-    >
-      {/* Expand toggle for container */}
-      {isContainer && (
-        <span className="text-xs text-[var(--text-muted)]">
-          {isExpanded ? "▼" : "▶"}
-        </span>
-      )}
-
-      {/* Icon */}
-      <span className="text-lg">{icon}</span>
-
-      {/* Label */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium text-[var(--text-primary)]">
-          {label}
-        </span>
-        {sublabel && (
-          <span className="ml-2 text-xs text-[var(--text-muted)]">
-            {sublabel}
-          </span>
+            {/* Drop zone at the bottom of root */}
+            <CanvasDropZone
+              id="root-drop-bottom"
+              parentId={null}
+              index={nodes.length}
+              isEmpty={false}
+            />
+          </div>
         )}
       </div>
-
-      {/* Index */}
-      <span className="text-xs text-[var(--text-muted)] bg-gray-100 w-6 h-6 flex items-center justify-center rounded">
-        {index}
-      </span>
     </div>
   );
 }

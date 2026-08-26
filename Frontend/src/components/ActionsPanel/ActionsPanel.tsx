@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, ChevronRight, ChevronDown, Zap, GripVertical } from "lucide-react";
+import { Search, ChevronRight, ChevronDown, Zap } from "lucide-react";
 import {
   CATEGORY_META,
   getActionsByCategory,
   searchActions,
-  getCategoryMeta,
 } from "@/data/actionDefinitions";
-import type { ActionDefinition, ActionCategory } from "@/types/workflow";
+import { DraggableActionItem } from "./DraggableActionItem";
 
 // ─── Actions Panel (Bên trái) ─────────────────────────────────────────────────
 export function ActionsPanel() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(["Flow Control", "Browser - Navigation", "Browser - Mouse"])
+  );
 
   // Nhóm actions theo category
   const actionsByCategory = useMemo(() => getActionsByCategory(), []);
@@ -37,9 +38,9 @@ export function ActionsPanel() {
   };
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-white flex flex-col select-none">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--panel-border)]">
+      <div className="px-4 py-3 border-b border-[var(--panel-border)] shrink-0">
         <div className="flex items-center gap-2 mb-3">
           <Zap className="w-5 h-5 text-[var(--primary)]" />
           <h2 className="font-semibold text-[var(--text-primary)]">Actions</h2>
@@ -75,7 +76,7 @@ export function ActionsPanel() {
                 Tìm thấy {searchResults.length} kết quả
               </div>
               {searchResults.map((action) => (
-                <ActionItem key={action.type} action={action} />
+                <DraggableActionItem key={action.type} action={action} />
               ))}
             </div>
           )
@@ -115,7 +116,7 @@ export function ActionsPanel() {
                 {isExpanded && (
                   <div className="pb-1">
                     {actions.map((action) => (
-                      <ActionItem key={action.type} action={action} />
+                      <DraggableActionItem key={action.type} action={action} />
                     ))}
                   </div>
                 )}
@@ -124,52 +125,6 @@ export function ActionsPanel() {
           })
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Action Item Component ────────────────────────────────────────────────────
-// Phase 3 sẽ thêm useDraggable từ @dnd-kit để kéo thả vào Canvas
-function ActionItem({ action }: { action: ActionDefinition }) {
-  const meta = getCategoryMeta(action.category);
-
-  return (
-    <div
-      className="flex items-center gap-2.5 mx-3 mb-1 px-3 py-2 rounded-lg
-        border border-transparent hover:border-blue-200 hover:bg-blue-50/50
-        cursor-grab active:cursor-grabbing transition-all group"
-      title={action.description}
-    >
-      {/* Drag handle */}
-      <GripVertical className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 shrink-0" />
-
-      {/* Icon */}
-      <span className="text-base shrink-0">{action.icon}</span>
-
-      {/* Label & description */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium text-[var(--text-primary)] block truncate">
-          {action.label}
-        </span>
-        {action.description && (
-          <span className="text-xs text-[var(--text-muted)] block truncate">
-            {action.description}
-          </span>
-        )}
-      </div>
-
-      {/* Container badge */}
-      {action.isContainer && (
-        <span
-          className="text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0"
-          style={{
-            backgroundColor: meta ? `${meta.color}15` : "#f3f4f6",
-            color: meta?.color || "#6b7280",
-          }}
-        >
-          Container
-        </span>
-      )}
     </div>
   );
 }
